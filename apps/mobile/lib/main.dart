@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'features/home/presentation/home_screen.dart';
+import 'app/root_shell.dart';
 
 void main() {
   runApp(const TrapizzinoApp());
@@ -18,7 +18,7 @@ class TrapizzinoApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const RootShell(),
     );
   }
 }

@@ -8,7 +8,6 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true,
       body: Stack(
         children: [
           const Positioned.fill(child: _MapBackground()),
@@ -27,13 +26,12 @@ class HomeScreen extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             child: SafeArea(
               top: false,
-              minimum: const EdgeInsets.only(bottom: 76),
+              minimum: const EdgeInsets.only(bottom: 8),
               child: const ShopCard(),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: const _BottomBar(),
     );
   }
 }
@@ -84,55 +82,6 @@ class _RoundIconButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(9),
           child: Icon(icon, size: 26, color: Colors.white),
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomBar extends StatelessWidget {
-  const _BottomBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 76,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF3F3F3),
-        border: Border(top: BorderSide(color: Color(0x22000000))),
-      ),
-      padding: const EdgeInsets.fromLTRB(36, 4, 36, 8),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _BottomBarAddButton(),
-          Icon(Icons.home_outlined, size: 44, color: Colors.black87),
-          Icon(Icons.person_outline, size: 44, color: Colors.black87),
-        ],
-      ),
-    );
-  }
-}
-
-class _BottomBarAddButton extends StatelessWidget {
-  const _BottomBarAddButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 58,
-      height: 58,
-      decoration: const BoxDecoration(
-        color: Color(0xFFE60000),
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Stack(
-          alignment: Alignment.center,
-          children: const [
-            Icon(Icons.crop_square_rounded, size: 34, color: Colors.black),
-            Icon(Icons.add, size: 30, color: Colors.black),
-          ],
         ),
       ),
     );
