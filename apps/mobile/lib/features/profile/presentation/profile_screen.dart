@@ -95,9 +95,9 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 Text(
                   '投稿',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const Spacer(),
                 Text(
@@ -187,7 +187,10 @@ class _PostGridTile extends StatelessWidget {
               const SizedBox(width: 6),
               const Icon(CupertinoIcons.heart_fill, size: 12),
               const SizedBox(width: 3),
-              Text('${post.likes}', style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                '${post.likes}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ),
         ],

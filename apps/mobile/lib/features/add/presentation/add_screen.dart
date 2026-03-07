@@ -47,8 +47,8 @@ class _AddScreenState extends State<AddScreen> {
 
   List<_PlacePrediction> _predictions = const [];
   _PlaceDetails? _selectedPlace;
-  XFile? _pickedImage;
-  String? _uploadedImageUrl;
+  List<XFile> _pickedImages = const [];
+  List<String> _uploadedImageUrls = const [];
 
   @override
   void dispose() {
@@ -181,23 +181,20 @@ class _AddScreenState extends State<AddScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImages() async {
     final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
+    final files = await picker.pickMultiImage(imageQuality: 80);
 
-    if (!mounted || file == null) return;
+    if (!mounted || files.isEmpty) return;
 
     setState(() {
-      _pickedImage = file;
-      _uploadedImageUrl = null;
+      _pickedImages = files;
+      _uploadedImageUrls = const [];
     });
   }
 
-  Future<String?> _uploadImageToCloudinary() async {
-    if (_pickedImage == null) return _uploadedImageUrl;
+  Future<List<String>> _uploadImagesToCloudinary() async {
+    if (_pickedImages.isEmpty) return _uploadedImageUrls;
 
     if (_cloudinaryName.isEmpty || _cloudinaryPreset.isEmpty) {
       throw Exception('Cloudinary config missing');
@@ -211,23 +208,27 @@ class _AddScreenState extends State<AddScreen> {
         _cloudinaryPreset,
         cache: false,
       );
-      final response = await cloudinary.uploadFile(
-        CloudinaryFile.fromFile(
-          _pickedImage!.path,
-          resourceType: CloudinaryResourceType.Image,
-          folder: 'trapizzino/spots',
-        ),
-      );
+      final uploadedUrls = <String>[];
+      for (final image in _pickedImages) {
+        final response = await cloudinary.uploadFile(
+          CloudinaryFile.fromFile(
+            image.path,
+            resourceType: CloudinaryResourceType.Image,
+            folder: 'trapizzino/spots',
+          ),
+        );
+        uploadedUrls.add(response.secureUrl);
+      }
 
-      if (!mounted) return null;
+      if (!mounted) return const [];
 
       setState(() {
-        _uploadedImageUrl = response.secureUrl;
+        _uploadedImageUrls = uploadedUrls;
         _isUploadingImage = false;
       });
-      return _uploadedImageUrl;
+      return uploadedUrls;
     } catch (_) {
-      if (!mounted) return null;
+      if (!mounted) return const [];
       setState(() => _isUploadingImage = false);
       rethrow;
     }
@@ -258,7 +259,7 @@ class _AddScreenState extends State<AddScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final imageUrl = await _uploadImageToCloudinary();
+      final imageUrls = await _uploadImagesToCloudinary();
       final uri = Uri.parse('$_apiBaseUrl/v1/users/me/spots');
 
       final payload = {
@@ -267,7 +268,8 @@ class _AddScreenState extends State<AddScreen> {
         'address': selected.address,
         'latitude': selected.lat,
         'longitude': selected.lng,
-        if ((imageUrl ?? '').isNotEmpty) 'imageUrl': imageUrl,
+        if (imageUrls.isNotEmpty) 'imageUrl': imageUrls.first,
+        if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
         if (_commentController.text.trim().isNotEmpty)
           'comment': _commentController.text.trim(),
       };
@@ -293,7 +295,8 @@ class _AddScreenState extends State<AddScreen> {
 
       setState(() {
         _commentController.clear();
-        _pickedImage = null;
+        _pickedImages = const [];
+        _uploadedImageUrls = const [];
       });
     } catch (_) {
       if (!mounted) return;
@@ -390,35 +393,53 @@ class _AddScreenState extends State<AddScreen> {
                     _SelectedPlaceCard(place: _selectedPlace!),
                   ],
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _commentController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(hintText: 'コメント（任意）'),
-                  ),
-                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _isBusy ? null : _pickImage,
-                          icon: const Icon(CupertinoIcons.photo),
-                          label: const Text('画像を選択'),
+                          onPressed: _isBusy ? null : _pickImages,
+                          icon: const Icon(CupertinoIcons.photo_on_rectangle),
+                          label: const Text('画像を複数選択'),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      if (_pickedImage != null)
-                        SizedBox(
-                          width: 64,
-                          height: 64,
-                          child: ClipRRect(
+                      if (_pickedImages.isNotEmpty) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          '${_pickedImages.length}枚',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (_pickedImages.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 86,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _pickedImages.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final image = _pickedImages[index];
+                          return ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.file(
-                              File(_pickedImage!.path),
+                              File(image.path),
+                              width: 86,
+                              height: 86,
                               fit: BoxFit.cover,
                             ),
-                          ),
-                        ),
-                    ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _commentController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(hintText: 'コメント（任意）'),
                   ),
                   const SizedBox(height: 14),
                   SizedBox(
