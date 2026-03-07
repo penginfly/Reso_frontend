@@ -457,7 +457,10 @@ class _AddScreenState extends State<AddScreen> {
                   ],
                   if (_selectedPlace != null) ...[
                     const SizedBox(height: 10),
-                    _SelectedPlaceCard(place: _selectedPlace!),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _SelectedPlaceCard(place: _selectedPlace!),
+                    ),
                   ],
                   const SizedBox(height: 12),
                   Row(
@@ -465,6 +468,10 @@ class _AddScreenState extends State<AddScreen> {
                       Expanded(
                         child: FilledButton.icon(
                           onPressed: _isBusy ? null : _pickImage,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                          ),
                           icon: const Icon(CupertinoIcons.photo_on_rectangle),
                           label: const Text('画像を選択'),
                         ),
@@ -506,8 +513,8 @@ class _AddScreenState extends State<AddScreen> {
                       onPressed: _isBusy ? null : _submitSpot,
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: const Color(0xFFFFC986),
-                        foregroundColor: const Color(0xFF111622),
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
                         textStyle: const TextStyle(
                           fontFamily: 'SF Pro Display',
                           fontWeight: FontWeight.w700,
@@ -573,18 +580,14 @@ class _SelectedPlaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassPanel(
       borderRadius: BorderRadius.circular(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(place.name, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 6),
-          Text(place.address),
-          const SizedBox(height: 6),
-          Text(
-            'lat: ${place.lat.toStringAsFixed(6)}, lng: ${place.lng.toStringAsFixed(6)}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+      child: SizedBox(
+        width: double.infinity,
+        child: Text(
+          place.name,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
