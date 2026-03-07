@@ -1,0 +1,364 @@
+openapi: 3.0.3
+info:
+  title: TRAPIZZINO Backend API
+  version: 1.0.0
+  description: |
+    バックエンド提供 API の暫定 OpenAPI 定義です。
+    画像仕様を元に作成しているため、実装との差分がある場合は都度更新してください。
+servers:
+  - url: https://api.sandbox-k.uk
+    description: 本番環境 (VPS)
+  - url: http://127.0.0.1:8080
+    description: ローカル環境
+tags:
+  - name: Auth
+  - name: Users
+  - name: Mesh
+  - name: Recommendation
+paths:
+  /v1/users/signup:
+    post:
+      tags: [Users]
+      summary: ユーザー登録
+      operationId: signupUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            example:
+              username: koichi_sato
+              email: koichi@example.com
+              password: my_strong_password_123
+      responses:
+        '200':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupResponse'
+              example:
+                id: 1
+                Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: ログイン
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: koichi_sato
+              password: my_strong_password_123
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  /v1/mesh/spots:
+    put:
+      tags: [Mesh]
+      summary: メッシュ内の店舗を登録
+      description: |
+        既存メッシュに同一店舗がある場合、`overwrite=false` では 409 を返す。
+        クライアント側で重複確認後に `overwrite=true` で再送する想定。
+      operationId: putMeshSpot
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutMeshSpotRequest'
+            example:
+              latitude: 35.6812
+              longitude: 139.7671
+              spot_name: Yasue Deep Yokocho
+              image_url: https://storage.reso.app/v1/posts/ebisu-001.jpg
+              caption: ここのランチサイコー。
+              overwrite: false
+      responses:
+        '200':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PutMeshSpotResponse'
+              example:
+                SpotID: 6
+                PostID: 19
+                MeshID: MESH-12567-31977
+        '409':
+          description: 重複あり (overwrite=false)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "conflict: spot already exists at this location"
+  /v1/users/me/spots:
+    get:
+      tags: [Users]
+      summary: ログインユーザーが登録した店舗一覧を取得
+      operationId: getMySpots
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetMySpotsResponse'
+              example:
+                user_spots:
+                  - spot:
+                      id: 1025
+                      name: 新しく見つけた最高のカフェ。
+                      mesh_id: mesh_12345
+                      location:
+                        latitude: 35.6895
+                        longitude: 139.6917
+                    post:
+                      id: 3691
+                      user_name: koichi_123
+                      image_url: https://firebasestorage.googleapis.com/v0/b/...
+                      caption: ここのパスタが絶品でした。
+                      posted_at: '2026-02-27T16:20:02Z'
+                  - spot:
+                      id: 998
+                      name: 神田のコワーキング。
+                      mesh_id: mesh_99887
+                      location:
+                        latitude: 35.6900
+                        longitude: 139.7000
+                    post:
+                      id: 3821
+                      user_name: koichi_123
+                      image_url: null
+                      caption: 静かで作業に最適。
+                      posted_at: '2026-02-28T10:00:00Z'
+  /v1/recommendation/distill:
+    get:
+      tags: [Recommendation]
+      summary: 現在地と投稿から最適な 1 件を算出
+      operationId: getDistillRecommendation
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+            format: double
+          example: 35.6895
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+            format: double
+          example: 139.6917
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistillResponse'
+              example:
+                recommendation:
+                  spot:
+                    id: 5
+                    name: 週末の隠れ家。
+                    mesh_id: MESH-12561-31977
+                    location:
+                      latitude: 35.7115
+                      longitude: 139.7185
+                  distillation_analysis:
+                    prototype_score: 2
+                    density_score: 4
+                    total_score: 12.82
+                    reason: 近さなどの複合要因が高評価
+                  posts:
+                    - id: 1
+                      user_name: dave
+                      caption: まずは前菜、オレンジワインが最高だった。
+                      image_url: https://x.com/v1.jpg
+                      posted_at: '2026-02-28T10:47:13Z'
+                    - id: 2
+                      user_name: erin
+                      caption: デザートに救われた雰囲気が良い。
+                      image_url: https://x.com/2.jpg
+                      posted_at: '2026-02-28T10:42:15Z'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      required: [Token]
+      properties:
+        Token:
+          type: string
+    SignupRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    SignupResponse:
+      type: object
+      required: [id, Token]
+      properties:
+        id:
+          type: integer
+        Token:
+          type: string
+    PutMeshSpotRequest:
+      type: object
+      required: [latitude, longitude, spot_name, image_url, caption, overwrite]
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        spot_name:
+          type: string
+        image_url:
+          type: string
+          format: uri
+        caption:
+          type: string
+        overwrite:
+          type: boolean
+    PutMeshSpotResponse:
+      type: object
+      required: [SpotID, PostID, MeshID]
+      properties:
+        SpotID:
+          type: integer
+        PostID:
+          type: integer
+        MeshID:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    SpotLocation:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+    Spot:
+      type: object
+      required: [id, name, mesh_id, location]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        mesh_id:
+          type: string
+        location:
+          $ref: '#/components/schemas/SpotLocation'
+    Post:
+      type: object
+      required: [id, user_name, caption, posted_at]
+      properties:
+        id:
+          type: integer
+        user_name:
+          type: string
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+        caption:
+          type: string
+        posted_at:
+          type: string
+          format: date-time
+    UserSpotItem:
+      type: object
+      required: [spot, post]
+      properties:
+        spot:
+          $ref: '#/components/schemas/Spot'
+        post:
+          $ref: '#/components/schemas/Post'
+    GetMySpotsResponse:
+      type: object
+      required: [user_spots]
+      properties:
+        user_spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSpotItem'
+    DistillationAnalysis:
+      type: object
+      required: [prototype_score, density_score, total_score, reason]
+      properties:
+        prototype_score:
+          type: number
+        density_score:
+          type: number
+        total_score:
+          type: number
+        reason:
+          type: string
+    RecommendationPayload:
+      type: object
+      required: [spot, distillation_analysis, posts]
+      properties:
+        spot:
+          $ref: '#/components/schemas/Spot'
+        distillation_analysis:
+          $ref: '#/components/schemas/DistillationAnalysis'
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+    DistillResponse:
+      type: object
+      required: [recommendation]
+      properties:
+        recommendation:
+          $ref: '#/components/schemas/RecommendationPayload'
