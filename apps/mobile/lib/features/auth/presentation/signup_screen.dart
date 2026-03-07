@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../app/widgets/glass_panel.dart';
 import 'widgets/auth_text_field.dart';
@@ -13,6 +15,8 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  static const String _apiBaseUrl = String.fromEnvironment('RESO_API_BASE_URL');
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -31,12 +35,12 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _submit() async {
-    final name = _nameController.text.trim();
+    final username = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (name.isEmpty ||
+    if (username.isEmpty ||
         email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
@@ -59,22 +63,74 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    if (_apiBaseUrl.isEmpty) {
+      _showMessage(
+        'RESO_API_BASE_URL が未設定です。--dart-define-from-file=.env を指定してください。',
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
-      // TODO: API 接続時にユーザー作成のリクエストへ置き換える。
-      await Future<void>.delayed(const Duration(milliseconds: 700));
+      final uri = Uri.parse('$_apiBaseUrl/v1/users/signup');
+      final response = await http
+          .post(
+            uri,
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'username': username,
+              'email': email,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode != 201) {
+        throw Exception(_extractErrorMessage(response.body));
+      }
+
+      final body = jsonDecode(response.body);
+      if (body is! Map<String, dynamic>) {
+        throw Exception('サーバーレスポンスの形式が不正です');
+      }
+
+      final token = body['Token'] ?? body['token'] ?? body['accessToken'];
+      if (token is! String || token.isEmpty) {
+        throw Exception('Token がレスポンスに含まれていません');
+      }
+
       if (!mounted) return;
       _showMessage('ユーザーを作成しました。ログインしてください');
       Navigator.of(context).pop(true);
-    } catch (_) {
+    } on TimeoutException {
       if (!mounted) return;
-      _showMessage('ユーザー作成に失敗しました');
+      _showMessage('通信がタイムアウトしました。時間をおいて再試行してください');
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  String _extractErrorMessage(String responseBody) {
+    try {
+      final decoded = jsonDecode(responseBody);
+      if (decoded is Map<String, dynamic>) {
+        final message =
+            decoded['message'] ?? decoded['error'] ?? decoded['detail'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message;
+        }
+      }
+    } catch (_) {
+      // Response body is not JSON; fallback to generic message.
+    }
+
+    return 'ユーザー作成に失敗しました';
   }
 
   void _showMessage(String message) {
