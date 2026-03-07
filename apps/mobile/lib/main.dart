@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app/root_shell.dart';
+import 'features/auth/presentation/login_screen.dart';
 
 void main() {
   runApp(const TrapizzinoApp());
@@ -64,7 +65,29 @@ class TrapizzinoApp extends StatelessWidget {
           fillColor: Colors.white.withValues(alpha: 0.08),
         ),
       ),
-      home: const RootShell(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _isAuthenticated = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isAuthenticated) {
+      return const RootShell();
+    }
+
+    return LoginScreen(
+      onLoginSuccess: () => setState(() => _isAuthenticated = true),
     );
   }
 }
