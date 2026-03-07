@@ -1,0 +1,385 @@
+openapi: 3.0.3
+info:
+  title: Trapizzino API
+  version: 1.0.0
+  description: |
+    画像仕様から起こしたAPI定義です。
+    必須/任意項目が画像上で判読しづらい箇所は、実運用に合わせて調整してください。
+servers:
+  - url: https://api.sandbox-kc.uk
+    description: 本番環境 (VPS)
+  - url: http://127.0.0.1:8080
+    description: 本番環境 (ローカル接続先として記載されていたURL)
+tags:
+  - name: Auth
+  - name: Users
+  - name: Recommendation
+  - name: Mesh
+paths:
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: ログイン
+      description: ユーザー認証を行いアクセストークンを返却します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: koichi_sato
+              password: my_strong_password_123
+      responses:
+        '200':
+          description: 認証成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '401':
+          description: 認証失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/signup:
+    post:
+      tags: [Users]
+      summary: 新規ユーザー登録
+      description: 新規ユーザーを作成してトークンを返却します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            example:
+              username: koichi_sato
+              email: koichi@example.com
+              password: my_strong_password_123
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: 入力不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/recommendation/distill:
+    post:
+      tags: [Recommendation]
+      summary: 推薦スポット抽出
+      description: 緯度経度を元に推薦候補のスポットを返却します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DistillRequest'
+            example:
+              lat: 35.6762
+              lng: 139.6503
+      responses:
+        '200':
+          description: 推薦結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistillResponse'
+        '400':
+          description: 入力不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/mesh/spots:
+    post:
+      tags: [Mesh]
+      summary: メッシュ内スポット検索
+      description: |
+        指定した緯度経度・半径などでスポット検索を行います。
+        画像の説明にあった `openNow=true` の場合、営業時間外店舗の扱いでHTTP 409が返るケースを定義しています。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeshSpotsRequest'
+            example:
+              latitude: 35.6762
+              longitude: 139.6503
+              radius: 1000
+              language: ja
+              category: ramen
+              openNow: true
+      responses:
+        '200':
+          description: 検索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeshSpotsResponse'
+        '409':
+          description: openNow=true時の条件不一致など
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/me/spots:
+    post:
+      tags: [Users]
+      summary: ユーザー保存スポット登録
+      description: ログイン中ユーザーの保存スポットを追加します。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddUserSpotRequest'
+            example:
+              placeId: ChIJN1t_tDeuEmsRUsoyG83frY4
+              name: TRAPIZZINO Sample
+              address: 東京都千代田区丸の内1-9-1
+              latitude: 35.681236
+              longitude: 139.767125
+              imageUrl: https://res.cloudinary.com/demo/image/upload/sample.jpg
+              comment: パン生地が美味しい
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSpot'
+        '400':
+          description: 入力不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Users]
+      summary: ユーザー保存スポット一覧
+      description: ログイン中ユーザーの保存スポット一覧を取得します。
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSpotsResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    SignupRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    TokenResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: JWT
+
+    DistillRequest:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+
+    DistillResponse:
+      type: object
+      required: [spots]
+      properties:
+        spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Spot'
+
+    MeshSpotsRequest:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        radius:
+          type: integer
+          description: 検索半径（m）
+          minimum: 1
+        language:
+          type: string
+          description: 例: ja, en
+        category:
+          type: string
+        openNow:
+          type: boolean
+
+    MeshSpotsResponse:
+      type: object
+      required: [spots]
+      properties:
+        spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Spot'
+
+    UserSpotsResponse:
+      type: object
+      required: [spots]
+      properties:
+        spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSpot'
+
+    AddUserSpotRequest:
+      type: object
+      required: [placeId, name, address, latitude, longitude]
+      properties:
+        placeId:
+          type: string
+          description: Google Place ID
+        name:
+          type: string
+        address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        imageUrl:
+          type: string
+          format: uri
+        comment:
+          type: string
+
+    Spot:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        rating:
+          type: number
+          format: float
+        reviewCount:
+          type: integer
+        priceLevel:
+          type: integer
+        openNow:
+          type: boolean
+        imageUrl:
+          type: string
+          format: uri
+        source:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+
+    UserSpot:
+      allOf:
+        - $ref: '#/components/schemas/Spot'
+        - type: object
+          properties:
+            savedAt:
+              type: string
+              format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

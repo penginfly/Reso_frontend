@@ -1,5 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../app/widgets/glass_panel.dart';
 import 'widgets/shop_card.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -7,31 +10,53 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          const Positioned.fill(child: _MapBackground()),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              child: _SearchBar(onTap: () {}),
+    return Stack(
+      children: [
+        const Positioned.fill(child: _MapBackground()),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF0F1728).withValues(alpha: 0.40),
+                    Colors.transparent,
+                    const Color(0xFF101827).withValues(alpha: 0.65),
+                  ],
+                ),
+              ),
             ),
           ),
-          Positioned(
-            top: 110,
-            right: 10,
-            child: _RoundIconButton(icon: Icons.sync, onPressed: () {}),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 8),
-              child: const ShopCard(),
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SearchBar(onTap: () {}),
+                const SizedBox(height: 12),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: _RoundIconButton(
+                    icon: CupertinoIcons.arrow_2_circlepath,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(14, 0, 14, 94),
+            child: const ShopCard(),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -43,22 +68,29 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black, width: 1.8),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: const Row(
-          children: [
-            Expanded(child: SizedBox()),
-            Icon(Icons.search, size: 34, color: Colors.black87),
-          ],
+    return GlassPanel(
+      borderRadius: BorderRadius.circular(18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              const Icon(CupertinoIcons.search, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'どこへ行く？',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              const Icon(CupertinoIcons.slider_horizontal_3, size: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -66,24 +98,16 @@ class _SearchBar extends StatelessWidget {
 }
 
 class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({required this.icon, required this.onPressed});
+  const _RoundIconButton({required this.icon});
 
   final IconData icon;
-  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.all(9),
-          child: Icon(icon, size: 26, color: Colors.white),
-        ),
-      ),
+    return GlassPanel(
+      borderRadius: BorderRadius.circular(999),
+      padding: const EdgeInsets.all(8),
+      child: Icon(icon, size: 24, color: const Color(0xFFEAF0F7)),
     );
   }
 }
@@ -93,88 +117,23 @@ class _MapBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: const Color(0xFFE4E4E4),
-      child: CustomPaint(painter: _MapPainter()),
-    );
-  }
-}
+    const tokyoStation = LatLng(35.681236, 139.767125);
 
-class _MapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final streetPaint = Paint()
-      ..color = const Color(0xFFF0F0F0)
-      ..strokeWidth = 22
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final minorStreetPaint = Paint()
-      ..color = const Color(0xFFF6F6F6)
-      ..strokeWidth = 10
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final blockPaint = Paint()..color = const Color(0xFFD6D6D6);
-
-    canvas.drawRect(
-      Rect.fromLTWH(
-        size.width * 0.02,
-        size.height * 0.65,
-        size.width * 0.36,
-        140,
+    return GoogleMap(
+      initialCameraPosition: const CameraPosition(
+        target: tokyoStation,
+        zoom: 15,
       ),
-      blockPaint,
+      markers: {
+        const Marker(
+          markerId: MarkerId('tokyo_station'),
+          position: tokyoStation,
+          infoWindow: InfoWindow(title: '東京駅'),
+        ),
+      },
+      mapToolbarEnabled: false,
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: false,
     );
-    canvas.drawRect(
-      Rect.fromLTWH(
-        size.width * 0.73,
-        size.height * 0.23,
-        size.width * 0.25,
-        110,
-      ),
-      blockPaint,
-    );
-
-    _drawStreet(canvas, streetPaint, [
-      Offset(size.width * -0.1, size.height * 0.15),
-      Offset(size.width * 0.32, size.height * 0.28),
-      Offset(size.width * 0.7, size.height * 0.5),
-      Offset(size.width * 1.1, size.height * 0.7),
-    ]);
-
-    _drawStreet(canvas, streetPaint, [
-      Offset(size.width * 0.85, size.height * -0.05),
-      Offset(size.width * 0.58, size.height * 0.26),
-      Offset(size.width * 0.44, size.height * 0.48),
-      Offset(size.width * 0.2, size.height * 0.84),
-    ]);
-
-    for (var i = -2; i < 9; i++) {
-      final dx = size.width * (0.1 + (i * 0.11));
-      _drawStreet(canvas, minorStreetPaint, [
-        Offset(dx, size.height * 0.1),
-        Offset(dx + size.width * 0.06, size.height * 0.95),
-      ]);
-    }
-
-    for (var i = 0; i < 8; i++) {
-      final dy = size.height * (0.17 + (i * 0.1));
-      _drawStreet(canvas, minorStreetPaint, [
-        Offset(size.width * -0.05, dy),
-        Offset(size.width * 1.05, dy + size.height * 0.03),
-      ]);
-    }
   }
-
-  void _drawStreet(Canvas canvas, Paint paint, List<Offset> points) {
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (var i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
-    }
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
