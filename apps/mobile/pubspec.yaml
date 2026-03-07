@@ -39,6 +39,10 @@ dependencies:
   http: ^1.2.2
   cloudinary_public: ^0.23.1
   image_picker: ^1.1.2
+  flutter_riverpod: ^3.2.1
+  dio: ^5.9.2
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.11.0
 
 dev_dependencies:
   flutter_test:
@@ -50,6 +54,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  build_runner: ^2.12.2
+  freezed: ^3.2.5
+  json_serializable: ^6.13.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

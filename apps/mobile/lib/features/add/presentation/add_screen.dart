@@ -21,12 +21,9 @@ class _AddScreenState extends State<AddScreen> {
   static const String _googleApiKey = String.fromEnvironment(
     'GOOGLE_PLACES_API_KEY',
   );
-  static const String _apiBaseUrl = String.fromEnvironment(
-    'TRAPIZZINO_API_BASE_URL',
-    defaultValue: 'https://api.sandbox-kc.uk',
-  );
+  static const String _apiBaseUrl = String.fromEnvironment('RESO_API_BASE_URL');
   static const String _defaultAuthToken = String.fromEnvironment(
-    'TRAPIZZINO_AUTH_TOKEN',
+    'RESO_AUTH_TOKEN',
   );
   static const String _cloudinaryName = String.fromEnvironment(
     'CLOUDINARY_CLOUD_NAME',
@@ -235,6 +232,18 @@ class _AddScreenState extends State<AddScreen> {
   }
 
   Future<void> _submitSpot() async {
+    if (_apiBaseUrl.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'RESO_API_BASE_URL が未設定です。--dart-define-from-file=.env を指定してください。',
+          ),
+        ),
+      );
+      return;
+    }
+
     final selected = _selectedPlace;
     final token = _defaultAuthToken.trim();
 
@@ -248,9 +257,7 @@ class _AddScreenState extends State<AddScreen> {
     if (token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'TRAPIZZINO_AUTH_TOKEN が未設定です。--dart-define で指定してください。',
-          ),
+          content: Text('RESO_AUTH_TOKEN が未設定です。--dart-define で指定してください。'),
         ),
       );
       return;

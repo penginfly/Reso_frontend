@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/root_shell.dart';
-import 'features/auth/presentation/login_screen.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/auth/presentation/screens/login_screen.dart';
 
 void main() {
-  runApp(const TrapizzinoApp());
+  runApp(const ProviderScope(child: TrapizzinoApp()));
 }
 
 class TrapizzinoApp extends StatelessWidget {
@@ -70,24 +72,15 @@ class TrapizzinoApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatefulWidget {
+class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
 
   @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
-  bool _isAuthenticated = false;
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isAuthenticated) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    if (authState.asData?.value != null) {
       return const RootShell();
     }
-
-    return LoginScreen(
-      onLoginSuccess: () => setState(() => _isAuthenticated = true),
-    );
+    return const LoginScreen();
   }
 }
