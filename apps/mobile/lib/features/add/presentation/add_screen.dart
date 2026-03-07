@@ -108,7 +108,9 @@ class _AddScreenState extends State<AddScreen> {
       if (!mounted) return;
 
       if (response.statusCode != 200) {
-        throw Exception('autocomplete failed: ${response.statusCode}');
+        throw Exception(
+          'autocomplete failed: ${response.statusCode} ${_extractApiError(response.body)}',
+        );
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -126,16 +128,53 @@ class _AddScreenState extends State<AddScreen> {
         _predictions = predictions;
         _isSearching = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _predictions = const [];
         _isSearching = false;
       });
+      final message = _humanizePlacesError(error);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('店舗検索に失敗しました')));
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+
+  String _extractApiError(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final error = decoded['error'];
+        if (error is Map<String, dynamic>) {
+          final status = error['status']?.toString();
+          final message = error['message']?.toString();
+          if (status != null && message != null) {
+            return '$status: $message';
+          }
+          if (message != null) {
+            return message;
+          }
+        }
+      }
+    } catch (_) {
+      // noop
+    }
+    return body;
+  }
+
+  String _humanizePlacesError(Object error) {
+    final text = error.toString();
+    if (text.contains('REQUEST_DENIED') || text.contains('PERMISSION_DENIED')) {
+      return '店舗検索に失敗しました: APIキーの制限/有効化設定を確認してください';
+    }
+    if (text.contains('API_KEY_INVALID')) {
+      return '店舗検索に失敗しました: GOOGLE_PLACES_API_KEY が無効です';
+    }
+    if (text.contains('SocketException')) {
+      return '店舗検索に失敗しました: ネットワーク接続を確認してください';
+    }
+    return '店舗検索に失敗しました: $text';
   }
 
   Future<void> _selectPlace(_PlacePrediction prediction) async {
