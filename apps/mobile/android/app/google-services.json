@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "982807142432",
+    "project_id": "reso-29a8f",
+    "storage_bucket": "reso-29a8f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:982807142432:android:15b7df9b811d3f3859dc45",
+        "android_client_info": {
+          "package_name": "com.trapizino.reso"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnK5OYXil5irZXcwHbpq9UCQ5Vk_8mAZE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
