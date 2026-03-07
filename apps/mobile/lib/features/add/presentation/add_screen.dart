@@ -23,7 +23,7 @@ class _AddScreenState extends State<AddScreen> {
   );
   static const String _apiBaseUrl = String.fromEnvironment(
     'TRAPIZZINO_API_BASE_URL',
-    defaultValue: 'https://api.sandbox-kc.uk',
+    defaultValue: 'https://api.sandbox-k.uk',
   );
   static const String _defaultAuthToken = String.fromEnvironment(
     'TRAPIZZINO_AUTH_TOKEN',
@@ -47,8 +47,8 @@ class _AddScreenState extends State<AddScreen> {
 
   List<_PlacePrediction> _predictions = const [];
   _PlaceDetails? _selectedPlace;
-  List<XFile> _pickedImages = const [];
-  List<String> _uploadedImageUrls = const [];
+  XFile? _pickedImage;
+  String? _uploadedImageUrl;
 
   @override
   void dispose() {
@@ -108,7 +108,9 @@ class _AddScreenState extends State<AddScreen> {
       if (!mounted) return;
 
       if (response.statusCode != 200) {
-        throw Exception('autocomplete failed: ${response.statusCode}');
+        throw Exception(
+          'autocomplete failed: ${response.statusCode} ${_extractApiError(response.body)}',
+        );
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -126,16 +128,69 @@ class _AddScreenState extends State<AddScreen> {
         _predictions = predictions;
         _isSearching = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _predictions = const [];
         _isSearching = false;
       });
+      final message = _humanizePlacesError(error);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('店舗検索に失敗しました')));
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+
+  String _extractApiError(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final error = decoded['error'];
+        if (error is Map<String, dynamic>) {
+          final status = error['status']?.toString();
+          final message = error['message']?.toString();
+          if (status != null && message != null) {
+            return '$status: $message';
+          }
+          if (message != null) {
+            return message;
+          }
+        }
+      }
+    } catch (_) {
+      // noop
+    }
+    return body;
+  }
+
+  String _humanizePlacesError(Object error) {
+    final text = error.toString();
+    if (text.contains('REQUEST_DENIED') || text.contains('PERMISSION_DENIED')) {
+      return '店舗検索に失敗しました: APIキーの制限/有効化設定を確認してください';
+    }
+    if (text.contains('API_KEY_INVALID')) {
+      return '店舗検索に失敗しました: GOOGLE_PLACES_API_KEY が無効です';
+    }
+    if (text.contains('SocketException')) {
+      return '店舗検索に失敗しました: ネットワーク接続を確認してください';
+    }
+    return '店舗検索に失敗しました: $text';
+  }
+
+  String _extractServerError(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final error = decoded['error']?.toString();
+        if (error != null && error.isNotEmpty) return error;
+
+        final message = decoded['message']?.toString();
+        if (message != null && message.isNotEmpty) return message;
+      }
+    } catch (_) {
+      // noop
+    }
+    return body;
   }
 
   Future<void> _selectPlace(_PlacePrediction prediction) async {
@@ -181,20 +236,24 @@ class _AddScreenState extends State<AddScreen> {
     }
   }
 
-  Future<void> _pickImages() async {
+  Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final files = await picker.pickMultiImage(imageQuality: 80);
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
 
-    if (!mounted || files.isEmpty) return;
+    if (!mounted || file == null) return;
 
     setState(() {
-      _pickedImages = files;
-      _uploadedImageUrls = const [];
+      _pickedImage = file;
+      _uploadedImageUrl = null;
     });
   }
 
-  Future<List<String>> _uploadImagesToCloudinary() async {
-    if (_pickedImages.isEmpty) return _uploadedImageUrls;
+  Future<String?> _uploadImageToCloudinary() async {
+    final pickedImage = _pickedImage;
+    if (pickedImage == null) return _uploadedImageUrl;
 
     if (_cloudinaryName.isEmpty || _cloudinaryPreset.isEmpty) {
       throw Exception('Cloudinary config missing');
@@ -208,27 +267,23 @@ class _AddScreenState extends State<AddScreen> {
         _cloudinaryPreset,
         cache: false,
       );
-      final uploadedUrls = <String>[];
-      for (final image in _pickedImages) {
-        final response = await cloudinary.uploadFile(
-          CloudinaryFile.fromFile(
-            image.path,
-            resourceType: CloudinaryResourceType.Image,
-            folder: 'trapizzino/spots',
-          ),
-        );
-        uploadedUrls.add(response.secureUrl);
-      }
+      final response = await cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          pickedImage.path,
+          resourceType: CloudinaryResourceType.Image,
+          folder: 'trapizzino/spots',
+        ),
+      );
 
-      if (!mounted) return const [];
+      if (!mounted) return null;
 
       setState(() {
-        _uploadedImageUrls = uploadedUrls;
+        _uploadedImageUrl = response.secureUrl;
         _isUploadingImage = false;
       });
-      return uploadedUrls;
+      return response.secureUrl;
     } catch (_) {
-      if (!mounted) return const [];
+      if (!mounted) return null;
       setState(() => _isUploadingImage = false);
       rethrow;
     }
@@ -259,22 +314,20 @@ class _AddScreenState extends State<AddScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final imageUrls = await _uploadImagesToCloudinary();
-      final uri = Uri.parse('$_apiBaseUrl/v1/users/me/spots');
+      final imageUrl = await _uploadImageToCloudinary();
+      final uri = Uri.parse('$_apiBaseUrl/v1/mesh/spots');
 
-      final payload = {
-        'placeId': selected.placeId,
-        'name': selected.name,
-        'address': selected.address,
+      final payload = <String, dynamic>{
         'latitude': selected.lat,
         'longitude': selected.lng,
-        if (imageUrls.isNotEmpty) 'imageUrl': imageUrls.first,
-        if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
-        if (_commentController.text.trim().isNotEmpty)
-          'comment': _commentController.text.trim(),
+        'spot_name': selected.name,
+        'overwrite': false,
       };
+      final caption = _commentController.text.trim();
+      if (caption.isNotEmpty) payload['caption'] = caption;
+      if (imageUrl != null) payload['image_url'] = imageUrl;
 
-      final response = await http.post(
+      final response = await http.put(
         uri,
         headers: {
           'Content-Type': 'application/json',
@@ -285,8 +338,19 @@ class _AddScreenState extends State<AddScreen> {
 
       if (!mounted) return;
 
+      if (response.statusCode == 409) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('同じ場所に既存店舗があります。必要なら overwrite=true で再投稿してください。'),
+          ),
+        );
+        return;
+      }
+
       if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception('post failed: ${response.statusCode} ${response.body}');
+        throw Exception(
+          'post failed: ${response.statusCode} ${_extractServerError(response.body)}',
+        );
       }
 
       ScaffoldMessenger.of(
@@ -295,14 +359,17 @@ class _AddScreenState extends State<AddScreen> {
 
       setState(() {
         _commentController.clear();
-        _pickedImages = const [];
-        _uploadedImageUrls = const [];
+        _pickedImage = null;
+        _uploadedImageUrl = null;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('投稿に失敗しました。設定と通信状態を確認してください')),
-      );
+      final message = error is Exception
+          ? error.toString().replaceFirst('Exception: ', '')
+          : error.toString();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('投稿に失敗しました。$message')));
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -390,48 +457,46 @@ class _AddScreenState extends State<AddScreen> {
                   ],
                   if (_selectedPlace != null) ...[
                     const SizedBox(height: 10),
-                    _SelectedPlaceCard(place: _selectedPlace!),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _SelectedPlaceCard(place: _selectedPlace!),
+                    ),
                   ],
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _isBusy ? null : _pickImages,
+                          onPressed: _isBusy ? null : _pickImage,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                          ),
                           icon: const Icon(CupertinoIcons.photo_on_rectangle),
-                          label: const Text('画像を複数選択'),
+                          label: const Text('画像を選択'),
                         ),
                       ),
-                      if (_pickedImages.isNotEmpty) ...[
+                      if (_pickedImage != null) ...[
                         const SizedBox(width: 10),
                         Text(
-                          '${_pickedImages.length}枚',
+                          '選択済み',
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
                       ],
                     ],
                   ),
-                  if (_pickedImages.isNotEmpty) ...[
+                  if (_pickedImage != null) ...[
                     const SizedBox(height: 10),
-                    SizedBox(
-                      height: 86,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _pickedImages.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(width: 10),
-                        itemBuilder: (context, index) {
-                          final image = _pickedImages[index];
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(
-                              File(image.path),
-                              width: 86,
-                              height: 86,
-                              fit: BoxFit.cover,
-                            ),
-                          );
-                        },
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(_pickedImage!.path),
+                          width: 86,
+                          height: 86,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ],
@@ -448,8 +513,8 @@ class _AddScreenState extends State<AddScreen> {
                       onPressed: _isBusy ? null : _submitSpot,
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: const Color(0xFFFFC986),
-                        foregroundColor: const Color(0xFF111622),
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
                         textStyle: const TextStyle(
                           fontFamily: 'SF Pro Display',
                           fontWeight: FontWeight.w700,
@@ -515,18 +580,14 @@ class _SelectedPlaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassPanel(
       borderRadius: BorderRadius.circular(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(place.name, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 6),
-          Text(place.address),
-          const SizedBox(height: 6),
-          Text(
-            'lat: ${place.lat.toStringAsFixed(6)}, lng: ${place.lng.toStringAsFixed(6)}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+      child: SizedBox(
+        width: double.infinity,
+        child: Text(
+          place.name,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
