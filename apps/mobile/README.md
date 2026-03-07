@@ -31,11 +31,24 @@ flutter run \
   --dart-define=CLOUDINARY_UNSIGNED_UPLOAD_PRESET=YOUR_PRESET
 ```
 
-投稿 API まで使う場合は、認証トークンも追加してください。
+投稿 API まで使う場合は、サーバー側でユーザー作成/ログインして取得したアクセストークンを追加してください。
 
 ```bash
---dart-define=TRAPIZZINO_AUTH_TOKEN=YOUR_TOKEN
+--dart-define=TRAPIZZINO_AUTH_TOKEN='YOUR_ACCESS_TOKEN'
 ```
+
+フルコマンド例:
+
+```bash
+cd apps/mobile
+flutter run \
+  --dart-define=GOOGLE_PLACES_API_KEY=YOUR_KEY \
+  --dart-define=CLOUDINARY_CLOUD_NAME=YOUR_CLOUD_NAME \
+  --dart-define=CLOUDINARY_UNSIGNED_UPLOAD_PRESET=YOUR_PRESET \
+  --dart-define=TRAPIZZINO_AUTH_TOKEN='YOUR_ACCESS_TOKEN'
+```
+
+`TRAPIZZINO_AUTH_TOKEN` は `.` などの記号を含むため、シングルクォートで囲むと安全です。
 
 `TRAPIZZINO_API_BASE_URL` は未指定時に `https://api.sandbox-kc.uk` が使われます。  
 必要なら上書きしてください。
