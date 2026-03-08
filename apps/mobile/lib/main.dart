@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/root_shell.dart';
+import 'features/auth/auth_secure_storage.dart';
+import 'features/auth/presentation/login_screen.dart';
 
 void main() {
   runApp(const TrapizzinoApp());
@@ -64,7 +67,64 @@ class TrapizzinoApp extends StatelessWidget {
           fillColor: Colors.white.withValues(alpha: 0.08),
         ),
       ),
-      home: const RootShell(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  static const String _firstLaunchFlagKey = 'reso_first_launch_done';
+
+  bool _isAuthenticated = false;
+  bool _isCheckingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    // iOS Keychain can survive app uninstall/reinstall. If this is the first
+    // launch of the current install, clear old token once.
+    final prefs = await SharedPreferences.getInstance();
+    final didInitialize = prefs.getBool(_firstLaunchFlagKey) ?? false;
+    if (!didInitialize) {
+      await AuthSecureStorage.instance.clearAccessToken();
+      await prefs.setBool(_firstLaunchFlagKey, true);
+    }
+
+    final token = await AuthSecureStorage.instance.readAccessToken();
+    if (!mounted) return;
+
+    setState(() {
+      _isAuthenticated = token != null && token.isNotEmpty;
+      _isCheckingSession = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isCheckingSession) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_isAuthenticated) {
+      return const RootShell();
+    }
+
+    return LoginScreen(
+      onLoginSuccess: () => setState(() => _isAuthenticated = true),
     );
   }
 }
