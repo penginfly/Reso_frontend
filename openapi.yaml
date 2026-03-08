@@ -6,7 +6,7 @@ info:
     画像仕様から起こしたAPI定義です。
     必須/任意項目が画像上で判読しづらい箇所は、実運用に合わせて調整してください。
 servers:
-  - url: https://api.sandbox-kc.uk
+  - url: https://api.sandbox-k.uk
     description: 本番環境 (VPS)
   - url: http://127.0.0.1:8080
     description: 本番環境 (ローカル接続先として記載されていたURL)
