@@ -136,61 +136,77 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
-                child: GlassPanel(
-                  padding: const EdgeInsets.all(18),
-                  borderRadius: BorderRadius.circular(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Welcome Back',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Reso',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'ログインして TRAPIZZINO をはじめよう',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.78),
-                        ),
+                    ),
+                    const SizedBox(height: 18),
+                    GlassPanel(
+                      padding: const EdgeInsets.all(18),
+                      borderRadius: BorderRadius.circular(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Welcome Back',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'ログインして Reso をはじめよう',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.78),
+                                ),
+                          ),
+                          const SizedBox(height: 18),
+                          AuthTextField(
+                            controller: _usernameController,
+                            label: 'ユーザー名',
+                            textInputAction: TextInputAction.next,
+                          ),
+                          const SizedBox(height: 12),
+                          AuthTextField(
+                            controller: _passwordController,
+                            label: 'パスワード',
+                            obscureText: true,
+                            textInputAction: TextInputAction.done,
+                          ),
+                          const SizedBox(height: 18),
+                          FilledButton(
+                            onPressed: _isSubmitting ? null : _submit,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text('ログイン'),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: _isSubmitting ? null : _openSignup,
+                            child: const Text('アカウントを作成する'),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 18),
-                      AuthTextField(
-                        controller: _usernameController,
-                        label: 'ユーザー名',
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 12),
-                      AuthTextField(
-                        controller: _passwordController,
-                        label: 'パスワード',
-                        obscureText: true,
-                        textInputAction: TextInputAction.done,
-                      ),
-                      const SizedBox(height: 18),
-                      FilledButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text('ログイン'),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: _isSubmitting ? null : _openSignup,
-                        child: const Text('アカウントを作成する'),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),

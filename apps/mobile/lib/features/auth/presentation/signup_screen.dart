@@ -150,79 +150,97 @@ class _SignupScreenState extends State<SignupScreen> {
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
-                child: GlassPanel(
-                  padding: const EdgeInsets.all(18),
-                  borderRadius: BorderRadius.circular(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                          tooltip: '戻る',
-                        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Reso',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Create Account',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 14),
+                    GlassPanel(
+                      padding: const EdgeInsets.all(18),
+                      borderRadius: BorderRadius.circular(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              onPressed: () => Navigator.of(context).maybePop(),
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                              ),
+                              tooltip: '戻る',
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Create Account',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'ユーザー情報を入力してアカウントを作成',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.78),
+                                ),
+                          ),
+                          const SizedBox(height: 18),
+                          AuthTextField(
+                            controller: _nameController,
+                            label: 'ユーザー名',
+                            textInputAction: TextInputAction.next,
+                          ),
+                          const SizedBox(height: 12),
+                          AuthTextField(
+                            controller: _emailController,
+                            label: 'メールアドレス',
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                          ),
+                          const SizedBox(height: 12),
+                          AuthTextField(
+                            controller: _passwordController,
+                            label: 'パスワード',
+                            obscureText: true,
+                            textInputAction: TextInputAction.next,
+                          ),
+                          const SizedBox(height: 12),
+                          AuthTextField(
+                            controller: _confirmPasswordController,
+                            label: 'パスワード（確認）',
+                            obscureText: true,
+                            textInputAction: TextInputAction.done,
+                          ),
+                          const SizedBox(height: 18),
+                          FilledButton(
+                            onPressed: _isSubmitting ? null : _submit,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text('ユーザー作成'),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'ユーザー情報を入力してアカウントを作成',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.78),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      AuthTextField(
-                        controller: _nameController,
-                        label: 'ユーザー名',
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 12),
-                      AuthTextField(
-                        controller: _emailController,
-                        label: 'メールアドレス',
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 12),
-                      AuthTextField(
-                        controller: _passwordController,
-                        label: 'パスワード',
-                        obscureText: true,
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 12),
-                      AuthTextField(
-                        controller: _confirmPasswordController,
-                        label: 'パスワード（確認）',
-                        obscureText: true,
-                        textInputAction: TextInputAction.done,
-                      ),
-                      const SizedBox(height: 18),
-                      FilledButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text('ユーザー作成'),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
