@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../auth_secure_storage.dart';
 import '../../../app/widgets/glass_panel.dart';
 import 'signup_screen.dart';
 import 'widgets/auth_text_field.dart';
@@ -73,6 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (token is! String || token.isEmpty) {
         throw Exception('Token がレスポンスに含まれていません');
       }
+
+      await AuthSecureStorage.instance.saveAccessToken(token);
 
       if (!mounted) return;
       widget.onLoginSuccess();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app/root_shell.dart';
+import 'features/auth/auth_secure_storage.dart';
 import 'features/auth/presentation/login_screen.dart';
 
 void main() {
@@ -79,9 +80,33 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool _isAuthenticated = false;
+  bool _isCheckingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    final token = await AuthSecureStorage.instance.readAccessToken();
+    if (!mounted) return;
+
+    setState(() {
+      _isAuthenticated = token != null && token.isNotEmpty;
+      _isCheckingSession = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingSession) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     if (_isAuthenticated) {
       return const RootShell();
     }
