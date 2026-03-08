@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/root_shell.dart';
 import 'features/auth/auth_secure_storage.dart';
@@ -79,6 +80,8 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
+  static const String _firstLaunchFlagKey = 'reso_first_launch_done';
+
   bool _isAuthenticated = false;
   bool _isCheckingSession = true;
 
@@ -89,6 +92,15 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _restoreSession() async {
+    // iOS Keychain can survive app uninstall/reinstall. If this is the first
+    // launch of the current install, clear old token once.
+    final prefs = await SharedPreferences.getInstance();
+    final didInitialize = prefs.getBool(_firstLaunchFlagKey) ?? false;
+    if (!didInitialize) {
+      await AuthSecureStorage.instance.clearAccessToken();
+      await prefs.setBool(_firstLaunchFlagKey, true);
+    }
+
     final token = await AuthSecureStorage.instance.readAccessToken();
     if (!mounted) return;
 
