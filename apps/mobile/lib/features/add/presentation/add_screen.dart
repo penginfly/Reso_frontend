@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/widgets/glass_panel.dart';
+import '../../auth/auth_secure_storage.dart';
 
 class AddScreen extends StatefulWidget {
   const AddScreen({super.key});
@@ -290,7 +291,8 @@ class _AddScreenState extends State<AddScreen> {
 
   Future<void> _submitSpot() async {
     final selected = _selectedPlace;
-    final token = _defaultAuthToken.trim();
+    final storedToken = await AuthSecureStorage.instance.readAccessToken();
+    final token = (storedToken ?? _defaultAuthToken).trim();
 
     if (selected == null) {
       ScaffoldMessenger.of(
@@ -301,11 +303,7 @@ class _AddScreenState extends State<AddScreen> {
 
     if (token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'TRAPIZZINO_AUTH_TOKEN が未設定です。--dart-define で指定してください。',
-          ),
-        ),
+        const SnackBar(content: Text('ログイン情報が見つかりません。再ログインしてください。')),
       );
       return;
     }
