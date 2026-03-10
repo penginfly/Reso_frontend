@@ -291,6 +291,8 @@ class _AddScreenState extends State<AddScreen> {
   }
 
   Future<void> _submitSpot() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final selected = _selectedPlace;
     final storedToken = await AuthSecureStorage.instance.readAccessToken();
     final token = (storedToken ?? _defaultAuthToken).trim();
