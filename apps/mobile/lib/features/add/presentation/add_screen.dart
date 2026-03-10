@@ -99,7 +99,6 @@ class _AddScreenState extends State<AddScreen> {
         },
         body: jsonEncode({
           'input': input,
-          'includedPrimaryTypes': ['restaurant', 'cafe', 'bakery'],
           'languageCode': 'ja',
           'regionCode': 'JP',
         }),
