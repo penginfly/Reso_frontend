@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:flutter/cupertino.dart';
@@ -324,30 +325,71 @@ class _AddScreenState extends State<AddScreen> {
       if (caption.isNotEmpty) payload['caption'] = caption;
       if (imageUrl != null) payload['image_url'] = imageUrl;
 
-      final response = await http.put(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(payload),
-      );
+      final response = await _putSpot(uri: uri, token: token, payload: payload);
 
       if (!mounted) return;
 
-      if (response.statusCode == 409) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('同じ場所に既存店舗があります。必要なら overwrite=true で再投稿してください。'),
-          ),
-        );
-        return;
-      }
+      final responseBody = _decodeJsonObject(response.body);
+      final apiResult = _SpotUpsertResponse.fromJson(responseBody ?? const {});
 
-      if (response.statusCode != 200 && response.statusCode != 201) {
+      final isSuccess =
+          response.statusCode == 200 || response.statusCode == 201;
+      final isConflict = response.statusCode == 409;
+
+      if (!isSuccess && !isConflict) {
         throw Exception(
           'post failed: ${response.statusCode} ${_extractServerError(response.body)}',
         );
+      }
+
+      if (apiResult.hasExistingInfo) {
+        final shouldOverwrite = await _showOverwriteDialog(apiResult);
+        if (!mounted) return;
+
+        if (!shouldOverwrite) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('投稿をキャンセルしました')));
+          return;
+        }
+
+        payload['overwrite'] = true;
+
+        final overwriteResponse = await _putSpot(
+          uri: uri,
+          token: token,
+          payload: payload,
+        );
+
+        if (!mounted) return;
+
+        if (overwriteResponse.statusCode != 200 &&
+            overwriteResponse.statusCode != 201) {
+          throw Exception(
+            'overwrite failed: ${overwriteResponse.statusCode} ${_extractServerError(overwriteResponse.body)}',
+          );
+        }
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('既存情報を上書きして投稿しました')));
+
+        setState(() {
+          _commentController.clear();
+          _pickedImage = null;
+          _uploadedImageUrl = null;
+        });
+        return;
+      }
+
+      if (isConflict) {
+        final message = apiResult.message.isNotEmpty
+            ? apiResult.message
+            : '同じ場所に既存店舗があります。必要なら上書きしてください。';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+        return;
       }
 
       ScaffoldMessenger.of(
@@ -372,6 +414,371 @@ class _AddScreenState extends State<AddScreen> {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  Future<http.Response> _putSpot({
+    required Uri uri,
+    required String token,
+    required Map<String, dynamic> payload,
+  }) {
+    return http.put(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(payload),
+    );
+  }
+
+  Map<String, dynamic>? _decodeJsonObject(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {
+      // noop
+    }
+    return null;
+  }
+
+  String _formatPostedAt(String raw) {
+    if (raw.trim().isEmpty) return 'なし';
+
+    final normalized = raw.contains('T') ? raw : raw.replaceFirst(' ', 'T');
+    final parsed = DateTime.tryParse(normalized);
+    if (parsed == null) return raw;
+
+    final local = parsed.toLocal();
+    final y = local.year.toString().padLeft(4, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return '$y/$m/$d $hh:$mm';
+  }
+
+  Future<bool> _showOverwriteDialog(_SpotUpsertResponse response) async {
+    final spot = response.spot;
+    final post = response.post;
+
+    final newSpotName = _selectedPlace?.name ?? '未選択';
+    final newCaption = _commentController.text.trim();
+    final oldCaption = post?.caption ?? '';
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                  child: Container(color: Colors.black.withValues(alpha: 0.42)),
+                ),
+              ),
+            ),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(28),
+                      color: const Color(0xFF0B1220).withValues(alpha: 0.92),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.14),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          blurRadius: 32,
+                          spreadRadius: -12,
+                          color: Colors.black.withValues(alpha: 0.65),
+                        ),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'このエリアのベスト店舗を更新しますか？',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '既存の登録情報を確認して、上書きするか選択してください。',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.74),
+                                ),
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              color: const Color(0xFF111827),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.08),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '現在登録されている店',
+                                  style: Theme.of(context).textTheme.labelLarge
+                                      ?.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.56,
+                                        ),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  spot?.name.isNotEmpty == true
+                                      ? spot!.name
+                                      : '店舗名なし',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.68,
+                                        ),
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  post?.postedAt.isNotEmpty == true
+                                      ? '投稿日: ${_formatPostedAt(post!.postedAt)}'
+                                      : '投稿日: なし',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.54,
+                                        ),
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  oldCaption.isNotEmpty
+                                      ? 'コメント: $oldCaption'
+                                      : 'コメント: なし',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.54,
+                                        ),
+                                      ),
+                                ),
+                                if (post?.imageUrl.isNotEmpty == true) ...[
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Opacity(
+                                      opacity: 0.78,
+                                      child: Image.network(
+                                        post!.imageUrl,
+                                        width: double.infinity,
+                                        height: 120,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) {
+                                          return Container(
+                                            width: double.infinity,
+                                            height: 120,
+                                            color: Colors.black12,
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              '画像を表示できませんでした',
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  const Color(0xFF0D1B2A),
+                                  const Color(
+                                    0xFF102A43,
+                                  ).withValues(alpha: 0.95),
+                                ],
+                              ),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFF38BDF8,
+                                ).withValues(alpha: 0.56),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '新しく登録する店',
+                                  style: Theme.of(context).textTheme.labelLarge
+                                      ?.copyWith(
+                                        color: const Color(0xFF7DD3FC),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  newSpotName,
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '投稿日: いま投稿',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.82,
+                                        ),
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  newCaption.isNotEmpty
+                                      ? 'コメント: $newCaption'
+                                      : 'コメント: なし',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.82,
+                                        ),
+                                      ),
+                                ),
+                                if (_pickedImage != null) ...[
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.file(
+                                      File(_pickedImage!.path),
+                                      width: double.infinity,
+                                      height: 120,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                    ),
+                                    foregroundColor: Colors.white.withValues(
+                                      alpha: 0.88,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  child: const Text('キャンセル'),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Color(0xFF67E8F9),
+                                        Color(0xFF38BDF8),
+                                        Color(0xFF0EA5E9),
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF38BDF8,
+                                        ).withValues(alpha: 0.44),
+                                        blurRadius: 18,
+                                        spreadRadius: -6,
+                                      ),
+                                    ],
+                                  ),
+                                  child: FilledButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(true),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      shadowColor: Colors.transparent,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      '上書きする',
+                                      style: TextStyle(
+                                        color: Color(0xFF001018),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
   }
 
   @override
@@ -630,6 +1037,86 @@ class _PlaceDetails {
       address: json['formattedAddress'] as String? ?? '',
       lat: (location?['latitude'] as num?)?.toDouble() ?? 0,
       lng: (location?['longitude'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class _SpotUpsertResponse {
+  const _SpotUpsertResponse({
+    required this.message,
+    required this.hasExistingInfo,
+    required this.spot,
+    required this.post,
+  });
+
+  final String message;
+  final bool hasExistingInfo;
+  final _ExistingSpot? spot;
+  final _ExistingPost? post;
+
+  factory _SpotUpsertResponse.fromJson(Map<String, dynamic> json) {
+    return _SpotUpsertResponse(
+      message: json['message'] as String? ?? '',
+      hasExistingInfo: json['has_existing_info'] as bool? ?? false,
+      spot: (json['spot'] as Map<String, dynamic>?) != null
+          ? _ExistingSpot.fromJson(json['spot'] as Map<String, dynamic>)
+          : null,
+      post: (json['post'] as Map<String, dynamic>?) != null
+          ? _ExistingPost.fromJson(json['post'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+class _ExistingSpot {
+  const _ExistingSpot({
+    required this.id,
+    required this.name,
+    required this.meshId,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final int id;
+  final String name;
+  final String meshId;
+  final double latitude;
+  final double longitude;
+
+  factory _ExistingSpot.fromJson(Map<String, dynamic> json) {
+    final location = json['location'] as Map<String, dynamic>?;
+    return _ExistingSpot(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      meshId: json['mesh_id'] as String? ?? '',
+      latitude: (location?['latitude'] as num?)?.toDouble() ?? 0,
+      longitude: (location?['longitude'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class _ExistingPost {
+  const _ExistingPost({
+    required this.id,
+    required this.userName,
+    required this.imageUrl,
+    required this.caption,
+    required this.postedAt,
+  });
+
+  final int id;
+  final String userName;
+  final String imageUrl;
+  final String caption;
+  final String postedAt;
+
+  factory _ExistingPost.fromJson(Map<String, dynamic> json) {
+    return _ExistingPost(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      userName: json['user_name'] as String? ?? '',
+      imageUrl: json['image_url'] as String? ?? '',
+      caption: json['caption'] as String? ?? '',
+      postedAt: json['posted_at'] as String? ?? '',
     );
   }
 }
