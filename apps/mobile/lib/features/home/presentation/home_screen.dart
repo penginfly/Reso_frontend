@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 
 import '../../../app/widgets/glass_panel.dart';
 import '../../auth/auth_secure_storage.dart';
+import 'recommendation_detail_screen.dart';
+import 'widgets/post_card.dart';
 import 'widgets/shop_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -186,6 +188,26 @@ class _HomeScreenState extends State<HomeScreen> {
       final spot = recommendation['spot'] as Map<String, dynamic>? ?? const {};
       final locationJson =
           spot['location'] as Map<String, dynamic>? ?? const {};
+      final rawPosts = body['posts'] ?? recommendation['posts'];
+      final posts = rawPosts is List ? rawPosts : const [];
+      final firstPost = posts.isNotEmpty ? posts.first : null;
+      final firstPostImageUrl = firstPost is Map<String, dynamic>
+          ? firstPost['image_url']?.toString()
+          : null;
+      final postCards = posts.map((post) {
+        if (post is! Map<String, dynamic>) {
+          return PostCardData(
+            shopName: spot['name'] as String? ?? 'Unknown Shop',
+            caption: '',
+            imageUrl: null,
+          );
+        }
+        return PostCardData(
+          shopName: spot['name'] as String? ?? 'Unknown Shop',
+          caption: post['caption']?.toString() ?? '',
+          imageUrl: post['image_url']?.toString(),
+        );
+      }).toList();
       final scores =
           recommendation['distillation_analysis'] as Map<String, dynamic>? ??
           const {};
@@ -205,6 +227,8 @@ class _HomeScreenState extends State<HomeScreen> {
           densityScore: (scores['density_score'] as num?)?.toInt() ?? 0,
           totalScore: (scores['total_score'] as num?)?.toInt() ?? 0,
           reason: scores['reason'] as String? ?? '理由が取得できませんでした',
+          postCards: postCards,
+          firstPostImageUrl: firstPostImageUrl,
         );
         _isLoadingRecommendation = false;
       });
@@ -357,6 +381,20 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openRecommendationDetail() {
+    final recommendation = _recommendation;
+    if (recommendation == null) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RecommendationDetailScreen(
+          spotName: recommendation.name,
+          posts: recommendation.postCards,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -422,6 +460,7 @@ class _HomeScreenState extends State<HomeScreen> {
               data: _recommendation,
               isLoading: _isLoadingRecommendation,
               errorMessage: _errorMessage,
+              onDetailTap: _openRecommendationDetail,
             ),
           ),
         ),
