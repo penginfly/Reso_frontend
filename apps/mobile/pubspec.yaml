@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   cupertino_native: ^0.1.1
   google_maps_flutter: ^2.14.2
+  geolocator: ^14.0.2
   http: ^1.2.2
   cloudinary_public: ^0.23.1
   image_picker: ^1.1.2

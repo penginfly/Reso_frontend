@@ -32,6 +32,7 @@ flutter run \
 ```
 
 投稿 API まで使う場合は、サーバー側でユーザー作成/ログインして取得したアクセストークンを追加してください。
+`Home` のおすすめ取得 (`/v1/recommendation/distill`) でも同じトークンを利用します。
 
 ```bash
 --dart-define=TRAPIZZINO_AUTH_TOKEN='YOUR_ACCESS_TOKEN'
@@ -85,3 +86,4 @@ flutter run \
 
 - `Target of URI doesn't exist` が出る: `flutter pub get` を実行
 - `dart-define` を追加したのに反映されない: アプリを完全停止して再起動（Hot Reload では反映されない）
+- `Home` で現在地が使えない: 端末の位置情報を ON にし、アプリに位置情報権限を許可する
