@@ -381,6 +381,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _onMapTapped(LatLng location) async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _queryLocation = location;
+      _predictions = const [];
+    });
+    await _fetchRecommendation(location);
+  }
+
   void _openRecommendationDetail() {
     final recommendation = _recommendation;
     if (recommendation == null) return;
@@ -404,6 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
             initialTarget: _queryLocation,
             markerTarget: _queryLocation,
             onMapCreated: _onMapCreated,
+            onTap: _onMapTapped,
           ),
         ),
         Positioned.fill(
@@ -577,17 +587,20 @@ class _MapBackground extends StatelessWidget {
     required this.initialTarget,
     required this.markerTarget,
     required this.onMapCreated,
+    required this.onTap,
   });
 
   final LatLng initialTarget;
   final LatLng markerTarget;
   final ValueChanged<GoogleMapController> onMapCreated;
+  final ValueChanged<LatLng> onTap;
 
   @override
   Widget build(BuildContext context) {
     return GoogleMap(
       initialCameraPosition: CameraPosition(target: initialTarget, zoom: 15),
       onMapCreated: onMapCreated,
+      onTap: onTap,
       markers: {
         Marker(
           markerId: const MarkerId('query_target'),
